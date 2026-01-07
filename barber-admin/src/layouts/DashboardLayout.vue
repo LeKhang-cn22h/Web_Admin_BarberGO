@@ -99,6 +99,8 @@
       <main class="p-8">
         <router-view />
       </main>
+          <NotificationContainer />
+
     </div>
   </div>
 </template>
@@ -107,6 +109,8 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import NotificationContainer from '@/components/common/NotificationContainer.vue'
+
 import {
   HomeIcon,
   CalendarIcon,

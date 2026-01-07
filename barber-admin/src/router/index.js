@@ -36,13 +36,13 @@ const router = createRouter({
           name: 'barber-detail',
           component: () => import('@/views/BarberDetailView.vue')
         },
-      
         {
           path: 'users',
           name: 'users',
           component: () => import('@/views/UsersView.vue')
         },
-        // ✅ RAG Routes
+
+        // ===== RAG =====
         {
           path: 'rag/documents',
           name: 'rag-documents',
@@ -50,7 +50,7 @@ const router = createRouter({
         },
         {
           path: 'rag/chat-sessions',
-          name: 'chat-sessions',
+          name: 'rag-chat-sessions',
           component: () => import('@/views/RAG/ChatSessionsView.vue')
         },
         {
@@ -63,17 +63,36 @@ const router = createRouter({
   ]
 })
 
-// Navigation guard
-router.beforeEach((to, from, next) => {
-  const authStore = useAuthStore()
-  
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    next('/login')
-  } else if (to.path === '/login' && authStore.isAuthenticated) {
-    next('/')
-  } else {
-    next()
-  }
-})
+/* =====================
+   NAVIGATION GUARD
+===================== */
 
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+  const publicPages = ['/login']
+  const authRequired = !publicPages.includes(to.path)
+
+  // 1. Nếu trang cần Auth mà không có token -> Về Login
+  if (authRequired && !authStore.token) {
+    return next('/login')
+  }
+
+  // 2. Nếu có Token nhưng chưa có thông tin User (trường hợp F5 refresh trang)
+  if (authStore.token && !authStore.user) {
+    try {
+      await authStore.fetchUser() // Gọi API lấy thông tin user từ token hiện có
+    } catch (error) {
+      // Nếu token không hợp lệ -> Logout
+      await authStore.logout()
+      return next('/login')
+    }
+  }
+
+  // 3. Nếu đã đăng nhập mà cố vào trang Login -> Đẩy về Home
+  if (to.path === '/login' && authStore.isAuthenticated) {
+    return next('/')
+  }
+
+  next()
+})
 export default router

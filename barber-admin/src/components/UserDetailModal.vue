@@ -118,10 +118,7 @@
               <p class="text-3xl font-bold text-orange-600">{{ userStats.pendingBookings }}</p>
               <p class="text-sm text-gray-600 mt-1">Chờ xử lý</p>
             </div>
-            <div class="text-center p-4 bg-purple-50 rounded-lg">
-              <p class="text-3xl font-bold text-purple-600">{{ formatPrice(userStats.totalSpent) }}</p>
-              <p class="text-sm text-gray-600 mt-1">Tổng chi</p>
-            </div>
+           
           </div>
         </div>        
 

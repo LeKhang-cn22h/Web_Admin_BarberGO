@@ -5,6 +5,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
     token: localStorage.getItem('access_token') || null,
+    refreshToken: localStorage.getItem('refresh_token') || null,
     isLoading: false,
     error: null,
   }),
@@ -27,15 +28,16 @@ export const useAuthStore = defineStore('auth', {
           password 
         })
         
-        // ✅ Backend trả về: { access_token, user }
+        //  Backend trả về: { access_token, user }
         this.token = response.data.access_token
+        this.refreshToken = response.data.refresh_token
         this.user = response.data.user
         localStorage.setItem('access_token', this.token)
-        
-        console.log('✅ Login successful:', this.user)
+        localStorage.setItem('refresh_token', this.refreshToken)
+        console.log(' Login successful:', this.user)
         return true
       } catch (error) {
-        console.error('❌ Login error:', error.response?.data || error)
+        console.error(' Login error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Login failed'
         return false
       } finally {
@@ -50,10 +52,10 @@ export const useAuthStore = defineStore('auth', {
       
       try {
         const response = await apiClient.post('/users/register', userData)
-        console.log('✅ Registration successful:', response.data)
+        console.log('Registration successful:', response.data)
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Register error:', error.response?.data || error)
+        console.error(' Register error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Registration failed'
         return { success: false, error: this.error }
       } finally {
@@ -68,10 +70,10 @@ export const useAuthStore = defineStore('auth', {
       
       try {
         const response = await apiClient.post('/users/create-owner', ownerData)
-        console.log('✅ Owner created:', response.data)
+        console.log('Owner created:', response.data)
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Create owner error:', error.response?.data || error)
+        console.error(' Create owner error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Failed to create owner'
         return { success: false, error: this.error }
       } finally {
@@ -94,10 +96,10 @@ export const useAuthStore = defineStore('auth', {
         this.user = response.data.user
         localStorage.setItem('access_token', this.token)
         
-        console.log('✅ Google login successful:', this.user)
+        console.log('Google login successful:', this.user)
         return true
       } catch (error) {
-        console.error('❌ Google login error:', error.response?.data || error)
+        console.error(' Google login error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Google login failed'
         return false
       } finally {
@@ -112,10 +114,10 @@ export const useAuthStore = defineStore('auth', {
       
       try {
         const response = await apiClient.post('/users/forgot-password', { email })
-        console.log('✅ Password reset email sent')
+        console.log('Password reset email sent')
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Forgot password error:', error.response?.data || error)
+        console.error(' Forgot password error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Failed to send reset email'
         return { success: false, error: this.error }
       } finally {
@@ -133,10 +135,10 @@ export const useAuthStore = defineStore('auth', {
           token, 
           new_password: newPassword 
         })
-        console.log('✅ Password reset successful')
+        console.log('Password reset successful')
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Reset password error:', error.response?.data || error)
+        console.error(' Reset password error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Failed to reset password'
         return { success: false, error: this.error }
       } finally {
@@ -151,10 +153,10 @@ export const useAuthStore = defineStore('auth', {
       
       try {
         const response = await apiClient.post('/users/resend-confirmation', { email })
-        console.log('✅ Confirmation email resent')
+        console.log('Confirmation email resent')
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Resend confirmation error:', error.response?.data || error)
+        console.error('Resend confirmation error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Failed to resend confirmation'
         return { success: false, error: this.error }
       } finally {
@@ -167,17 +169,16 @@ export const useAuthStore = defineStore('auth', {
       if (!this.token) return
       
       try {
-        // ✅ Dùng endpoint GET /users/{user_id}
-        // Hoặc nếu có endpoint /users/me thì dùng
+        // Dùng endpoint GET /users/{user_id}
         const userId = this.user?.id
         
         if (userId) {
           const response = await apiClient.get(`/users/${userId}`)
           this.user = response.data
-          console.log('✅ User fetched:', this.user)
+          console.log('User fetched:', this.user)
         }
       } catch (error) {
-        console.error('❌ Fetch user error:', error)
+        console.error(' Fetch user error:', error)
         this.logout()
       }
     },
@@ -195,10 +196,10 @@ export const useAuthStore = defineStore('auth', {
           this.user = { ...this.user, ...response.data }
         }
         
-        console.log('✅ User updated:', response.data)
+        console.log('User updated:', response.data)
         return { success: true, data: response.data }
       } catch (error) {
-        console.error('❌ Update user error:', error.response?.data || error)
+        console.error('Update user error:', error.response?.data || error)
         this.error = error.response?.data?.detail || 'Failed to update user'
         return { success: false, error: this.error }
       } finally {
@@ -212,7 +213,8 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.error = null
       localStorage.removeItem('access_token')
-      console.log('✅ Logged out')
+      localStorage.removeItem('refresh_token')
+      console.log(' Logged out')
     },
 
     // ==================== CLEAR ERROR ====================

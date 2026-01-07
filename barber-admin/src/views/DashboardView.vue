@@ -30,7 +30,6 @@
 
     <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
       <!-- Pending Appointments -->
       <div class="card">
         <div class="flex items-center justify-between mb-6">
@@ -60,13 +59,15 @@
             <div class="flex gap-2 mt-3">
               <button
                 @click="handleConfirm(appointment)"
-                class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 rounded-lg transition"
+                :disabled="isProcessing"
+                class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm py-2 rounded-lg transition disabled:opacity-50"
               >
-                Xác nhận
+                {{ isProcessing ? 'Đang xử lý...' : 'Xác nhận' }}
               </button>
               <button
                 @click="handleReject(appointment)"
-                class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2 rounded-lg transition"
+                :disabled="isProcessing"
+                class="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm py-2 rounded-lg transition disabled:opacity-50"
               >
                 Từ chối
               </button>
@@ -121,60 +122,92 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirm Barber Creation Modal -->
+    <ConfirmBarberCreationModal
+      v-if="showConfirmModal && selectedAppointment"
+      :appointment="selectedAppointment"
+      :is-processing="isProcessing"
+      @confirm="handleConfirmWithBarber"
+      @cancel="closeConfirmModal"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useBarberStore } from '@/stores/barber'
 import appointmentService from '@/api/services/appointmentService'
 import barberService from '@/api/services/barberService'
-import apiClient from '@/api/axios'
+import { useNotification } from '@/composables/useNotification'
+import ConfirmBarberCreationModal from '@/components/appointment/ConfirmBarberCreationModal.vue'
 import {
   CalendarDaysIcon,
   ClockIcon,
-
   UserIcon,
   StarIcon,
 } from '@heroicons/vue/24/outline'
 
 const authStore = useAuthStore()
+const barberStore = useBarberStore()
+const { showSuccess, showError } = useNotification()
 
 const userName = computed(() => authStore.user?.full_name || 'Admin')
 
-const loadingBookings = ref(false)
 const loadingAppointments = ref(false)
 const loadingBarbers = ref(false)
+const isProcessing = ref(false)
 
-const recentBookings = ref([])
 const pendingAppointments = ref([])
 const topBarbers = ref([])
-
-
-const fetchRecentBookings = async () => {
-  loadingBookings.value = true
-  try {
-    const response = await apiClient.get('/bookings/', { params: { limit: 5 } })
-    recentBookings.value = response.data
-    
-    // Update stats
-    const totalResponse = await apiClient.get('/bookings/stats')
-    if (totalResponse.data) {
-      stats.value[0].value = totalResponse.data.total || '0'
-    }
-  } catch (error) {
-    console.error('Error fetching bookings:', error)
-  } finally {
-    loadingBookings.value = false
+const stats = ref([
+  {
+    label: 'Tổng cuộc hẹn',
+    value: '0',
+    change: '+12% từ tháng trước',
+    color: 'text-blue-600',
+    icon: CalendarDaysIcon,
+    iconBg: 'blue'
+  },
+  {
+    label: 'Thợ cắt tóc',
+    value: '0',
+    change: '+3 thợ mới',
+    color: 'text-green-600',
+    icon: UserIcon,
+    iconBg: 'green'
+  },
+  {
+    label: 'Chờ xử lý',
+    value: '0',
+    change: 'Cần xem xét',
+    color: 'text-orange-600',
+    icon: ClockIcon,
+    iconBg: 'orange'
+  },
+  {
+    label: 'Đánh giá TB',
+    value: '4.8',
+    change: '+0.2 điểm',
+    color: 'text-yellow-600',
+    icon: StarIcon,
+    iconBg: 'yellow'
   }
-}
+])
+
+// Modal state
+const showConfirmModal = ref(false)
+const selectedAppointment = ref(null)
 
 const fetchPendingAppointments = async () => {
   loadingAppointments.value = true
   try {
     const response = await appointmentService.getByStatus('pending')
-    pendingAppointments.value = response.data.slice(0, 5)
-    stats.value[2].value = response.data.length.toString()
+    console.log('Pending appointments response:', response)
+
+    pendingAppointments.value = response.slice(0, 5)
+    stats.value[2].value = response.length.toString()
   } catch (error) {
     console.error('Error fetching appointments:', error)
   } finally {
@@ -186,7 +219,8 @@ const fetchTopBarbers = async () => {
   loadingBarbers.value = true
   try {
     const response = await barberService.getTopBarbers(3)
-    topBarbers.value = response.data
+    topBarbers.value = response
+    console.log('Pending topbarber response:', response)
   } catch (error) {
     console.error('Error fetching barbers:', error)
   } finally {
@@ -194,36 +228,84 @@ const fetchTopBarbers = async () => {
   }
 }
 
-const handleConfirm = async (appointment) => {
-  if (confirm('Xác nhận cuộc hẹn này?')) {
-    try {
-      await appointmentService.confirm(
-        appointment.id,
-        authStore.user.id,
-        'Xác nhận từ bảng điều khiển'
-      )
-      await fetchPendingAppointments()
-    } catch (error) {
-      alert('Xác nhận cuộc hẹn thất bại')
-    }
+/**
+ * Mở modal xác nhận tạo barber
+ */
+const openConfirmModal = (appointment) => {
+  selectedAppointment.value = appointment
+  showConfirmModal.value = true
+}
+
+/**
+ * Đóng modal
+ */
+const closeConfirmModal = () => {
+  showConfirmModal.value = false
+  selectedAppointment.value = null
+}
+
+/**
+ * Xử lý xác nhận và tạo barber
+ */
+const handleConfirmWithBarber = async (barberData) => {
+  isProcessing.value = true
+  try {
+    // 1. Xác nhận appointment
+    await appointmentService.confirm(
+      selectedAppointment.value.id,
+      authStore.user.id,
+      'Đã xác nhận từ dashboard và tạo thợ tự động'
+    )
+
+    // 2. Tạo barber mới
+    const newBarber = await barberStore.createBarber(barberData)
+    
+    showSuccess(`Đã xác nhận lịch hẹn và tạo thợ "${newBarber.name}" thành công`)
+    
+    // 3. Refresh data
+    await Promise.all([
+      fetchPendingAppointments(),
+      fetchTopBarbers()
+    ])
+    
+    closeConfirmModal()
+    
+  } catch (error) {
+    console.error('Error confirming appointment:', error)
+    showError(error.message || 'Có lỗi xảy ra khi xác nhận')
+  } finally {
+    isProcessing.value = false
   }
 }
 
+/**
+ * Xử lý xác nhận appointment (mở modal)
+ */
+const handleConfirm = (appointment) => {
+  openConfirmModal(appointment)
+}
+
+/**
+ * Xử lý từ chối appointment
+ */
 const handleReject = async (appointment) => {
   const reason = prompt('Lý do từ chối:')
-  if (reason) {
-    try {
-      await appointmentService.cancel(appointment.id, reason)
-      await fetchPendingAppointments()
-    } catch (error) {
-      alert('Từ chối cuộc hẹn thất bại')
-    }
+  if (!reason) return
+
+  isProcessing.value = true
+  try {
+    await appointmentService.cancel(appointment.id, reason)
+    showSuccess('Đã từ chối cuộc hẹn')
+    await fetchPendingAppointments()
+  } catch (error) {
+    showError('Từ chối cuộc hẹn thất bại')
+  } finally {
+    isProcessing.value = false
   }
 }
 
 onMounted(async () => {
   await Promise.all([
-    fetchRecentBookings(),
     fetchPendingAppointments(),
     fetchTopBarbers()
   ])
