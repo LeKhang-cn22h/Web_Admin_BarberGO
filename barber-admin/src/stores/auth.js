@@ -64,22 +64,35 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // ==================== CREATE OWNER ====================
-    async createOwner(ownerData) {
-      this.isLoading = true
-      this.error = null
-      
-      try {
-        const response = await apiClient.post('/users/create-owner', ownerData)
-        console.log('Owner created:', response.data)
-        return { success: true, data: response.data }
-      } catch (error) {
-        console.error(' Create owner error:', error.response?.data || error)
-        this.error = error.response?.data?.detail || 'Failed to create owner'
-        return { success: false, error: this.error }
-      } finally {
-        this.isLoading = false
-      }
-    },
+   async createOwner(ownerData) {
+  this.isLoading = true
+  this.error = null
+  
+  try {
+    const response = await apiClient.post('/users/create-owner', ownerData)
+    console.log('✅ Owner created response:', response.data)
+    
+    // ✅ Đảm bảo response.data có id
+    if (!response.data || !response.data.id) {
+      console.error('❌ Invalid owner response:', response.data)
+      throw new Error('Backend không trả về Owner ID')
+    }
+    
+    return { 
+      success: true, 
+      data: response.data 
+    }
+  } catch (error) {
+    console.error('❌ Create owner error:', error.response?.data || error)
+    this.error = error.response?.data?.detail || 'Failed to create owner'
+    return { 
+      success: false, 
+      error: this.error 
+    }
+  } finally {
+    this.isLoading = false
+  }
+},
 
     // ==================== GOOGLE LOGIN ====================
     async googleLogin(idToken) {

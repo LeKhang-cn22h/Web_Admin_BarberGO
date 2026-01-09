@@ -140,7 +140,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useBarberStore } from '@/stores/barber'
 import appointmentService from '@/api/services/appointmentService'
 import barberService from '@/api/services/barberService'
+import { emailApi } from '@/api/emailApi'
 import { useNotification } from '@/composables/useNotification'
+import { generateSecurePassword, transformToOwnerEmail } from '@/utils/password'
+
 import ConfirmBarberCreationModal from '@/components/appointment/ConfirmBarberCreationModal.vue'
 import {
   CalendarDaysIcon,
@@ -249,20 +252,95 @@ const closeConfirmModal = () => {
  */
 const handleConfirmWithBarber = async (barberData) => {
   isProcessing.value = true
+  
   try {
-    // 1. Xác nhận appointment
+    console.log('=== DEBUG handleConfirmWithBarber ===')
+    console.log('selectedAppointment:', selectedAppointment.value)
+    console.log('barberData:', barberData)
+    console.log('authStore.user:', authStore.user)
+    
+    if (!authStore.user || !authStore.user.id) {
+      throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+    }
+    
+    const adminId = authStore.user.id
+
+    // 1. Confirm appointment
+    console.log('Step 1: Confirming appointment...')
     await appointmentService.confirm(
       selectedAppointment.value.id,
-      authStore.user.id,
-      'Đã xác nhận từ dashboard và tạo thợ tự động'
+      adminId,
+      'Đã xác nhận từ dashboard'
     )
+    console.log('✅ Appointment confirmed')
 
-    // 2. Tạo barber mới
-    const newBarber = await barberStore.createBarber(barberData)
+    // 2. Create Owner
+    console.log('Step 2: Creating owner...')
+    const ownerEmail = transformToOwnerEmail(selectedAppointment.value.email)
+    const ownerPassword = generateSecurePassword(12)
     
-    showSuccess(`Đã xác nhận lịch hẹn và tạo thợ "${newBarber.name}" thành công`)
+    console.log('Creating owner with:', {
+      email: ownerEmail,
+      password: ownerPassword
+    })
     
-    // 3. Refresh data
+    const ownerResult = await authStore.createOwner({
+      email: ownerEmail,
+      password: ownerPassword,
+      full_name: selectedAppointment.value.users?.full_name || selectedAppointment.value.name_barber || 'Owner',
+      phone: selectedAppointment.value.phone || ''
+    })
+    
+    console.log('Owner creation result:', ownerResult)
+    
+    if (!ownerResult || !ownerResult.success) {
+      throw new Error(ownerResult?.error || 'Không thể tạo Owner')
+    }
+    
+    const newOwner = ownerResult.data
+    
+    if (!newOwner || !newOwner.id) {
+      console.error('❌ Invalid owner data:', newOwner)
+      throw new Error('Owner data không có ID')
+    }
+    
+    console.log('✅ Owner created with ID:', newOwner.id)
+    
+    // 3. Create barber
+    console.log('Step 3: Creating barber...')
+    
+    // ✅ FIX: Chỉ gửi 2 fields mà backend cần
+    const barberPayload = {
+      user_id: newOwner.id,
+      name: barberData.name || selectedAppointment.value.name_barber || 'Barber Shop'
+    }
+    
+    console.log('Creating barber with minimal payload:', JSON.stringify(barberPayload, null, 2))
+    
+    const newBarber = await barberStore.createBarber(barberPayload)
+    
+    console.log('✅ Barber created:', newBarber)
+    
+    // 4. Send email
+    console.log('Step 4: Sending email...')
+    await emailApi.sendOwnerCredentials({
+      recipient: selectedAppointment.value.email,
+      email: ownerEmail,
+      password: ownerPassword
+    })
+    
+    console.log('✅ Email sent')
+    console.log('=== WORKFLOW COMPLETED ===')
+    
+    showSuccess(
+      `✅ Thành công!\n\n` +
+      `• Tạo Owner: ${ownerEmail}\n` +
+      `• Owner ID: ${newOwner.id}\n` +
+      `• Tạo Barber: ${newBarber.name}\n` +
+      `• Email đã gửi đến: ${selectedAppointment.value.email}`
+    )
+    
+    // 5. Refresh data
     await Promise.all([
       fetchPendingAppointments(),
       fetchTopBarbers()
@@ -271,7 +349,11 @@ const handleConfirmWithBarber = async (barberData) => {
     closeConfirmModal()
     
   } catch (error) {
-    console.error('Error confirming appointment:', error)
+    console.error('❌ Error in handleConfirmWithBarber:', error)
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    })
     showError(error.message || 'Có lỗi xảy ra khi xác nhận')
   } finally {
     isProcessing.value = false

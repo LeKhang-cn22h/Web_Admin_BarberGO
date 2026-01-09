@@ -1,4 +1,3 @@
-<!-- src/views/AppointmentsView.vue -->
 <template>
   <div class="space-y-6">
     <!-- Stats Cards -->
@@ -65,15 +64,14 @@ const handleFilterChange = (status) => {
 }
 
 const handleConfirm = async (appointment) => {
-  // Kiểm tra admin authentication (để xác nhận appointment)
+  // Kiểm tra admin authentication
   if (!authStore.user || !authStore.user.id) {
     console.error('Admin not authenticated')
     alert('Vui lòng đăng nhập lại')
     return
   }
   
-  // Mở modal để xác nhận và chỉnh sửa thông tin barber
-  // Truyền adminId để confirm appointment, user_id sẽ lấy từ appointment
+  // Mở modal
   await confirmAppointment(appointment, authStore.user.id)
 }
 

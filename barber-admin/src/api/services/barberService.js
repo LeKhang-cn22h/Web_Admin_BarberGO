@@ -91,13 +91,41 @@ class BarberService {
    * @returns {Promise<Object>}
    */
   async create(data) {
-    try {
-      const response = await apiClient.post(BARBER_API_ENDPOINTS.BASE, data)
-      return response.data
-    } catch (error) {
-      this.handleError(error, 'Không thể tạo thợ mới')
+  try {
+    console.log('=' . repeat(60))
+    console.log('🔵 CREATE BARBER REQUEST')
+    console.log('Input data:', data)
+    console.log('  name:', data.name)
+    console.log('  user_id:', data.user_id)
+    
+    const formData = new FormData()
+    formData.append('name', data.name)
+    formData.append('user_id', data.user_id)
+    
+    console.log('FormData entries:')
+    for (let pair of formData.entries()) {
+      console.log(`  ${pair[0]}: ${pair[1]}`)
     }
+    console.log('=' . repeat(60))
+    
+    const response = await apiClient.post(`${BARBER_API_ENDPOINTS.BASE}/`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    console.log('✅ Response:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('=' . repeat(60))
+    console.error('❌ CREATE BARBER ERROR')
+    console.error('Status:', error.response?.status)
+    console.error('Data:', error.response?.data)
+    console.error('Headers:', error.response?.headers)
+    console.error('=' . repeat(60))
+    throw this.handleError(error, 'Không thể tạo thợ mới')
   }
+}
 
   /**
    * Update barber

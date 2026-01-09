@@ -1,13 +1,15 @@
-// src/composables/useAppointments.js
 import { ref, computed } from 'vue'
 import { useAppointmentStore } from '@/stores/appointment'
 import { useBarberStore } from '@/stores/barber'
+import { useAuthStore } from '@/stores/auth'
 import { useNotification } from '@/composables/useNotification'
-import { APPOINTMENT_STATUS_CLASSES } from '@/constants/appointment.constant'
+import { emailApi } from '@/api/emailApi'
+import { generateSecurePassword, transformToOwnerEmail } from '@/utils/password'
 
 export function useAppointments() {
   const appointmentStore = useAppointmentStore()
   const barberStore = useBarberStore()
+  const authStore = useAuthStore()
   const { showSuccess, showError } = useNotification()
   const isProcessing = ref(false)
   
@@ -28,19 +30,6 @@ export function useAppointments() {
       await appointmentStore.fetchAll()
     } catch (error) {
       showError(`Không thể tải danh sách lịch hẹn: ${error.message}`)
-    }
-  }
-
-  /**
-   * Tạo barber từ dữ liệu form
-   */
-  const createBarberFromForm = async (barberData) => {
-    try {
-      const newBarber = await barberStore.createBarber(barberData)
-      return newBarber
-    } catch (error) {
-      console.error('Error creating barber:', error)
-      throw error
     }
   }
 
@@ -73,7 +62,7 @@ export function useAppointments() {
   }
 
   /**
-   * Xử lý xác nhận từ modal
+   * Xử lý xác nhận và tạo Owner + Barber + Gửi Email
    */
   const handleConfirmWithBarber = async (barberData) => {
     if (!selectedAppointment.value || !pendingAdminId.value) {
@@ -81,30 +70,110 @@ export function useAppointments() {
       return
     }
 
-    // Đảm bảo user_id trong barberData là từ appointment (người đặt lịch)
-    // Không phải từ admin đang confirm
-    if (!barberData.user_id) {
-      barberData.user_id = selectedAppointment.value.user_id
-    }
-
     isProcessing.value = true
+    
     try {
-      // 1. Xác nhận appointment (dùng pendingAdminId - admin đang confirm)
-      await appointmentStore.confirmAppointment(
-        selectedAppointment.value.id,
-        pendingAdminId.value, // Admin ID
-        'Đã xác nhận bởi admin và tạo thợ tự động'
-      )
-
-      // 2. Tạo barber với user_id từ appointment (người đặt lịch)
-      const newBarber = await createBarberFromForm(barberData)
+      const appointment = selectedAppointment.value
       
-      showSuccess(`Đã xác nhận lịch hẹn và tạo thợ "${newBarber.name}" cho User ID: ${barberData.user_id}`)
+      console.log('=== START WORKFLOW ===')
+      console.log('Appointment:', appointment)
+      
+      // BƯỚC 1: Tạo tài khoản Owner
+      const ownerEmail = transformToOwnerEmail(appointment.email)
+      const ownerPassword = generateSecurePassword(12)
+      
+      console.log('Step 1: Creating owner account...')
+      console.log('Owner email:', ownerEmail)
+      console.log('Owner password:', ownerPassword)
+      
+      const ownerData = {
+        email: ownerEmail,
+        password: ownerPassword,
+        full_name: appointment.users?.full_name || appointment.name_barber || 'Owner',
+        phone: appointment.phone || ''
+      }
+      
+      console.log('Calling authStore.createOwner with:', ownerData)
+      
+      const ownerResult = await authStore.createOwner(ownerData)
+      
+      console.log('Owner result:', ownerResult)
+      
+      // ✅ FIX: Kiểm tra kỹ response structure
+      if (!ownerResult || !ownerResult.success) {
+        const errorMsg = ownerResult?.error || 'Không thể tạo tài khoản Owner'
+        console.error('❌ Create owner failed:', errorMsg)
+        throw new Error(errorMsg)
+      }
+      
+      const newOwner = ownerResult.data
+      
+      // ✅ FIX: Kiểm tra newOwner có id không
+      if (!newOwner || !newOwner.id) {
+        console.error('❌ Owner data is invalid:', newOwner)
+        throw new Error('Dữ liệu Owner không hợp lệ (thiếu ID)')
+      }
+      
+      console.log('✅ Owner created successfully:', newOwner)
+      console.log('Owner ID:', newOwner.id)
+      
+      // BƯỚC 2: Xác nhận appointment
+      console.log('Step 2: Confirming appointment...')
+      await appointmentStore.confirmAppointment(
+        appointment.id,
+        pendingAdminId.value,
+        `Đã xác nhận và tạo Owner (ID: ${newOwner.id}, Email: ${ownerEmail})`
+      )
+      console.log('✅ Appointment confirmed')
+      
+      // BƯỚC 3: Tạo barber với user_id của Owner vừa tạo
+      console.log('Step 3: Creating barber...')
+      console.log('Barber data from form:', JSON.stringify(barberData, null, 2))
+      console.log('Barber data from form:', barberData)
+      
+      const barberPayload = {
+        ...barberData,
+        user_id: newOwner.id // Gắn barber với owner vừa tạo
+      }
+      
+      console.log('Barber payload with owner_id:', barberPayload)
+      
+      const newBarber = await barberStore.createBarber(barberPayload)
+      console.log('✅ Barber created:', newBarber)
+      
+      // BƯỚC 4: Gửi email đơn giản chỉ có email và password
+      console.log('Step 4: Sending email...')
+      
+      await emailApi.sendOwnerCredentials({
+        recipient: appointment.email, // Email gốc của appointment
+        email: ownerEmail, // Email để đăng nhập
+        password: ownerPassword // Password để đăng nhập
+      })
+      
+      console.log('✅ Email sent to:', appointment.email)
+      console.log('=== WORKFLOW COMPLETED ===')
+      
+      showSuccess(
+        `✅ Thành công!\n\n` +
+        `• Tạo Owner: ${ownerEmail}\n` +
+        `• Owner ID: ${newOwner.id}\n` +
+        `• Tạo Barber: ${newBarber.name}\n` +
+        `• Email đã gửi đến: ${appointment.email}`
+      )
+      
       closeConfirmModal()
       
+      // Refresh appointments list
+      await fetchAppointments()
+      
     } catch (error) {
-      console.error('Error in handleConfirmWithBarber:', error)
-      showError(error.message || 'Có lỗi xảy ra')
+      console.error('❌ Error in handleConfirmWithBarber:', error)
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        error: error
+      })
+      showError(error.message || 'Có lỗi xảy ra trong quá trình xử lý')
     } finally {
       isProcessing.value = false
     }
@@ -133,6 +202,7 @@ export function useAppointments() {
     try {
       await appointmentStore.cancelAppointment(appointment.id, reason)
       showSuccess('Đã hủy lịch hẹn')
+      await fetchAppointments()
     } catch (error) {
       console.error('Error cancelling appointment:', error)
       showError(`Không thể hủy lịch hẹn: ${error.message}`)
@@ -156,6 +226,7 @@ export function useAppointments() {
     try {
       await appointmentStore.deleteAppointment(appointment.id)
       showSuccess('Đã xóa lịch hẹn')
+      await fetchAppointments()
     } catch (error) {
       console.error('Error deleting appointment:', error)
       showError(`Không thể xóa lịch hẹn: ${error.message}`)
@@ -169,13 +240,6 @@ export function useAppointments() {
    */
   const filterByStatus = (status) => {
     appointmentStore.setFilter('status', status)
-  }
-
-  /**
-   * Get status class
-   */
-  const getStatusClass = (status) => {
-    return APPOINTMENT_STATUS_CLASSES[status] || 'bg-gray-100 text-gray-800'
   }
 
   return {
@@ -194,9 +258,6 @@ export function useAppointments() {
     closeConfirmModal,
     cancelAppointment,
     deleteAppointment,
-    filterByStatus,
-    
-    // Utils
-    getStatusClass
+    filterByStatus
   }
 }
