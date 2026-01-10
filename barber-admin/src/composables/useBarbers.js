@@ -93,18 +93,16 @@ export function useBarbers() {
 
     isProcessing.value = true
     try {
-      await store.updateBarber(barber.id, { status: !barber.status })
+      await store.toggleBarberStatus(barber.id)  // ✅ Call PATCH /deactivate
       showSuccess(`Đã ${action} thợ thành công`)
     } catch (error) {
       showError(`Không thể ${action} thợ`)
+      console.log(error)
     } finally {
       isProcessing.value = false
     }
   }
 
-  /**
-   * Delete barber
-   */
   const deleteBarber = async (barber) => {
     if (!confirm(`Bạn có chắc muốn xóa thợ "${barber.name}" không?`)) {
       return

@@ -158,14 +158,7 @@
 
         <!-- Actions -->
         <div class="flex gap-3 pt-4 border-t">
-          <button
-            v-if="user.role === 'user'"
-            @click="changeRole('admin')"
-            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-medium transition flex items-center justify-center gap-2"
-          >
-            <ShieldCheckIcon class="w-5 h-5" />
-            Thành Admin
-          </button>
+          
           <button
             v-if="user.role === 'admin'"
             @click="changeRole('user')"

@@ -21,20 +21,12 @@
       <XMarkIcon class="w-5 h-5" />
     </button>
 
-    <button
-      @click="$emit('delete')"
-      :disabled="isProcessing"
-      class="text-gray-600 hover:text-gray-800 disabled:opacity-50"
-      title="Xóa"
-    >
-      <TrashIcon class="w-5 h-5" />
-    </button>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { CheckIcon, XMarkIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { APPOINTMENT_STATUS } from '@/constants/appointment.constant'
 
 const props = defineProps({

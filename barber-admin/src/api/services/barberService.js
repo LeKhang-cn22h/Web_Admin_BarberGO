@@ -1,15 +1,8 @@
 // src/api/services/barberService.js
 import apiClient from '../axios'
 import { BARBER_API_ENDPOINTS, IMAGE_UPLOAD_CONFIG } from '@/constants/barbers.contans'
-/**
- * Barber Service
- * Handles all barber-related API calls
- */
+
 class BarberService {
-  /**
-   * Validate image file before upload
-   * @private
-   */
   validateImageFile(file) {
     if (!file) {
       throw new Error('Không có file nào được chọn')
@@ -26,10 +19,6 @@ class BarberService {
     return true
   }
 
-  /**
-   * Handle API errors
-   * @private
-   */
   handleError(error, defaultMessage) {
     const message = error.response?.data?.detail || 
                     error.response?.data?.message || 
@@ -38,12 +27,6 @@ class BarberService {
     throw new Error(message)
   }
 
-  /**
-   * Get all barbers with pagination
-   * @param {number} skip - Number of records to skip
-   * @param {number} limit - Maximum number of records to return
-   * @returns {Promise<Array>}
-   */
   async getAll(skip = 0, limit = 100) {
     try {
       const response = await apiClient.get(BARBER_API_ENDPOINTS.BASE, {
@@ -55,11 +38,6 @@ class BarberService {
     }
   }
 
-  /**
-   * Get barber by ID
-   * @param {string|number} id - Barber ID
-   * @returns {Promise<Object>}
-   */
   async getById(id) {
     try {
       const response = await apiClient.get(BARBER_API_ENDPOINTS.BY_ID(id))
@@ -69,11 +47,6 @@ class BarberService {
     }
   }
 
-  /**
-   * Get top rated barbers
-   * @param {number} limit - Number of barbers to return
-   * @returns {Promise<Array>}
-   */
   async getTopBarbers(limit = 2) {
     try {
       const response = await apiClient.get(BARBER_API_ENDPOINTS.TOP, {
@@ -85,54 +58,24 @@ class BarberService {
     }
   }
 
-  /**
-   * Create new barber
-   * @param {Object} data - Barber data
-   * @returns {Promise<Object>}
-   */
   async create(data) {
-  try {
-    console.log('=' . repeat(60))
-    console.log('🔵 CREATE BARBER REQUEST')
-    console.log('Input data:', data)
-    console.log('  name:', data.name)
-    console.log('  user_id:', data.user_id)
-    
-    const formData = new FormData()
-    formData.append('name', data.name)
-    formData.append('user_id', data.user_id)
-    
-    console.log('FormData entries:')
-    for (let pair of formData.entries()) {
-      console.log(`  ${pair[0]}: ${pair[1]}`)
+    try {
+      const formData = new FormData()
+      formData.append('name', data.name)
+      formData.append('user_id', data.user_id)
+      
+      const response = await apiClient.post(`${BARBER_API_ENDPOINTS.BASE}/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
+      
+      return response.data
+    } catch (error) {
+      this.handleError(error, 'Không thể tạo thợ mới')
     }
-    console.log('=' . repeat(60))
-    
-    const response = await apiClient.post(`${BARBER_API_ENDPOINTS.BASE}/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    
-    console.log('✅ Response:', response.data)
-    return response.data
-  } catch (error) {
-    console.error('=' . repeat(60))
-    console.error('❌ CREATE BARBER ERROR')
-    console.error('Status:', error.response?.status)
-    console.error('Data:', error.response?.data)
-    console.error('Headers:', error.response?.headers)
-    console.error('=' . repeat(60))
-    throw this.handleError(error, 'Không thể tạo thợ mới')
   }
-}
 
-  /**
-   * Update barber
-   * @param {string|number} id - Barber ID
-   * @param {Object} data - Update data
-   * @returns {Promise<Object>}
-   */
   async update(id, data) {
     try {
       const response = await apiClient.put(BARBER_API_ENDPOINTS.BY_ID(id), data)
@@ -142,13 +85,6 @@ class BarberService {
     }
   }
 
-  /**
-   * Update barber location
-   * @param {string|number} id - Barber ID
-   * @param {number} lat - Latitude
-   * @param {number} lng - Longitude
-   * @returns {Promise<Object>}
-   */
   async updateLocation(id, lat, lng) {
     try {
       const response = await apiClient.put(BARBER_API_ENDPOINTS.LOCATION(id), {
@@ -161,15 +97,8 @@ class BarberService {
     }
   }
 
-  /**
-   * Upload barber image
-   * @param {string|number} id - Barber ID
-   * @param {File} file - Image file
-   * @returns {Promise<Object>}
-   */
   async uploadImage(id, file) {
     try {
-      // Validate file
       this.validateImageFile(file)
 
       const formData = new FormData()
@@ -190,11 +119,25 @@ class BarberService {
     }
   }
 
-  /**
-   * Delete barber
-   * @param {string|number} id - Barber ID
-   * @returns {Promise<void>}
-   */
+  // ✅ Toggle status - Smart endpoint selection
+  async toggleStatus(id, currentStatus) {
+    try {
+      // If active (true) → call deactivate
+      // If inactive (false) → call activate
+      const endpoint = currentStatus 
+        ? BARBER_API_ENDPOINTS.DEACTIVATE(id) 
+        : BARBER_API_ENDPOINTS.ACTIVATE(id)
+      
+      console.log(`🔄 Toggling barber ${id}: ${currentStatus} → ${!currentStatus}`)
+      console.log(`   Calling: ${endpoint}`)
+      
+      const response = await apiClient.patch(endpoint)
+      return response.data
+    } catch (error) {
+      this.handleError(error, 'Không thể thay đổi trạng thái thợ')
+    }
+  }
+
   async delete(id) {
     try {
       await apiClient.delete(BARBER_API_ENDPOINTS.BY_ID(id))

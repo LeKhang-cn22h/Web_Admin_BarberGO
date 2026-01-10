@@ -1,4 +1,3 @@
-<!-- src/views/BarberDetailView.vue -->
 <template>
   <div class="space-y-6">
     <!-- Back Button -->
@@ -33,8 +32,11 @@
         @toggle-status="handleToggleServiceStatus"
       />
 
-      <!-- Map (if location available) -->
-      <BarberMap v-if="currentBarber.location" :location="currentBarber.location" />
+      <!-- Map (only if has valid location) -->
+      <BarberMap 
+        v-if="hasValidLocation" 
+        :location="{ lat: currentBarber.lat, lng: currentBarber.lng }" 
+      />
     </div>
 
     <!-- Modals -->
@@ -84,7 +86,11 @@ const showEditModal = ref(false)
 const showAddServiceModal = ref(false)
 const selectedService = ref(null)
 
-// Mock statistics - replace with real data
+// Check if has valid location
+const hasValidLocation = computed(() => {
+  return currentBarber.value?.lat && currentBarber.value?.lng
+})
+
 const statistics = computed(() => ({
   totalBookings: 0,
   completedBookings: 0,

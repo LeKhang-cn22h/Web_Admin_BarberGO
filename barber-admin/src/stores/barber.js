@@ -188,11 +188,44 @@ export const useBarberStore = defineStore('barber', {
     /**
      * Delete barber
      */
+    async toggleBarberStatus(id) {
+  this.error = null
+  
+  try {
+    console.log('🔵 Store: Toggling barber status for ID:', id)
+    
+    // ✅ Get current barber to know current status
+    const currentBarber = this.barbers.find(b => b.id === id)
+    if (!currentBarber) {
+      throw new Error('Barber not found in local state')
+    }
+    
+    console.log(`   Current status: ${currentBarber.status}`)
+    
+    // ✅ Pass current status to service
+    const updated = await barberService.toggleStatus(id, currentBarber.status)
+    console.log('✅ Store: Barber updated:', updated)
+    
+    // Update in local state
+    const index = this.barbers.findIndex(b => b.id === id)
+    if (index !== -1) {
+      this.barbers[index] = updated
+    }
+
+    if (this.currentBarber?.id === id) {
+      this.currentBarber = updated
+    }
+
+    return updated
+  } catch (error) {
+    this.error = error.message
+    console.error('❌ Store: Error toggling barber status:', error)
+    throw error
+  }
+},
     async deleteBarber(id) {
       try {
-        await barberService.delete(id)
-        this.barbers = this.barbers.filter(b => b.id !== id)
-        
+        await this.toggleBarberStatus(id)
         if (this.currentBarber?.id === id) {
           this.currentBarber = null
         }

@@ -16,9 +16,10 @@
       </button>
     </div>
 
-    <!-- Search -->
+    <!-- Search & Filter -->
     <div class="card">
-      <div class="flex gap-4">
+      <div class="flex flex-col sm:flex-row gap-4">
+        <!-- Search -->
         <div class="flex-1 relative">
           <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -29,6 +30,20 @@
             class="input-field pl-10"
           />
         </div>
+        
+        <!-- Type Filter -->
+        <select
+          v-model="filterType"
+          @change="handleFilterChange"
+          class="input-field w-48"
+        >
+          <option value="">All Types</option>
+          <option value="app">App</option>
+          <option value="beauty">Beauty</option>
+          <option value="policy">Policy</option>
+          <option value="general">General</option>
+        </select>
+
         <button @click="handleSearch" class="btn-primary">
           Search
         </button>
@@ -39,7 +54,7 @@
     </div>
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <div class="card bg-blue-50 border border-blue-200">
         <div class="flex items-center justify-between">
           <div>
@@ -53,8 +68,8 @@
       <div class="card bg-green-50 border border-green-200">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-green-600 font-medium">Loaded</p>
-            <p class="text-3xl font-bold text-green-700">{{ documents.length }}</p>
+            <p class="text-sm text-green-600 font-medium">App</p>
+            <p class="text-3xl font-bold text-green-700">{{ typeStats.app }}</p>
           </div>
           <CheckCircleIcon class="w-12 h-12 text-green-400" />
         </div>
@@ -63,10 +78,20 @@
       <div class="card bg-purple-50 border border-purple-200">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-sm text-purple-600 font-medium">Progress</p>
-            <p class="text-3xl font-bold text-purple-700">{{ loadProgress }}%</p>
+            <p class="text-sm text-purple-600 font-medium">Beauty</p>
+            <p class="text-3xl font-bold text-purple-700">{{ typeStats.beauty }}</p>
           </div>
           <ChartBarIcon class="w-12 h-12 text-purple-400" />
+        </div>
+      </div>
+
+      <div class="card bg-orange-50 border border-orange-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-orange-600 font-medium">Other</p>
+            <p class="text-3xl font-bold text-orange-700">{{ typeStats.other }}</p>
+          </div>
+          <ChartBarIcon class="w-12 h-12 text-orange-400" />
         </div>
       </div>
     </div>
@@ -96,7 +121,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Content</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Output</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Instruction</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -105,24 +130,23 @@
                 <td class="px-6 py-4 text-sm font-medium text-gray-800">{{ doc.id }}</td>
                 
                 <!-- Content -->
-                <td class="px-6 py-4">
+                <td class="px-6 py-4 max-w-xs">
                   <p class="text-sm text-gray-800 line-clamp-2">{{ doc.content }}</p>
                 </td>
                 
                 <!-- Output -->
-                <td class="px-6 py-4">
+                <td class="px-6 py-4 max-w-md">
                   <p class="text-sm text-gray-600 line-clamp-2">{{ doc.metadata?.output || 'N/A' }}</p>
                 </td>
                 
-                <!-- Instruction -->
+                <!-- Type Badge -->
                 <td class="px-6 py-4">
                   <span 
-                    v-if="doc.metadata?.instruction" 
-                    class="px-3 py-1 text-xs font-medium"
+                    :class="getTypeBadgeClass(doc.metadata?.type)"
+                    class="px-3 py-1 text-xs font-medium rounded-full"
                   >
-                    {{ doc.metadata.instruction }}
+                    {{ getTypeLabel(doc.metadata?.type) }}
                   </span>
-                  <span v-else class="text-gray-400 text-xs">-</span>
                 </td>
                 
                 <!-- Actions -->
@@ -164,7 +188,7 @@
           </div>
         </div>
 
-        <!-- Load More Button (fallback if scroll doesn't work) -->
+        <!-- Load More Button -->
         <div v-else-if="hasMore && !isLoadingMore" class="flex justify-center py-6 border-t bg-gray-50">
           <button
             @click="loadMore"
@@ -186,7 +210,7 @@
           </div>
         </div>
 
-        <!-- Scroll Sentinel (invisible element to trigger load) -->
+        <!-- Scroll Sentinel -->
         <div ref="scrollSentinel" class="h-1"></div>
       </div>
     </div>
@@ -230,27 +254,68 @@ const documents = ref([])
 const totalDocuments = ref(0)
 const hasMore = ref(false)
 const currentOffset = ref(0)
-const itemsPerPage = 50  
+const itemsPerPage = 50
 
 const searchKeyword = ref('')
+const filterType = ref('')  // ✅ New filter
 const showCreateModal = ref(false)
 const selectedDocument = ref(null)
 const viewingDocument = ref(null)
 const scrollSentinel = ref(null)
 const observer = ref(null)
 
+// ✅ Calculate type stats
+const typeStats = computed(() => {
+  const stats = {
+    app: 0,
+    beauty: 0,
+    policy: 0,
+    general: 0,
+    other: 0
+  }
+
+  documents.value.forEach(doc => {
+    const type = doc.metadata?.type || 'general'
+    if (stats[type] !== undefined) {
+      stats[type]++
+    } else {
+      stats.other++
+    }
+  })
+
+  return stats
+})
+
 const loadProgress = computed(() => {
   if (totalDocuments.value === 0) return 0
   return Math.round((documents.value.length / totalDocuments.value) * 100)
 })
 
+// ✅ Helper functions for type display
+const getTypeLabel = (type) => {
+  const labels = {
+    app: 'App',
+    beauty: 'Beauty',
+    policy: 'Policy',
+    general: 'General'
+  }
+  return labels[type] || 'Unknown'
+}
 
-// ✅ Fetch documents with infinite scroll support
+const getTypeBadgeClass = (type) => {
+  const classes = {
+    app: 'bg-blue-100 text-blue-700',
+    beauty: 'bg-pink-100 text-pink-700',
+    policy: 'bg-purple-100 text-purple-700',
+    general: 'bg-gray-100 text-gray-700'
+  }
+  return classes[type] || 'bg-gray-100 text-gray-700'
+}
+
+// ✅ Fetch documents
 const fetchDocuments = async (reset = false) => {
-  // Prevent multiple simultaneous loads
   if (isLoadingMore.value) return
   
-  // Reset về đầu nếu cần
   if (reset) {
     currentOffset.value = 0
     documents.value = []
@@ -258,7 +323,6 @@ const fetchDocuments = async (reset = false) => {
     hasMore.value = false
   }
 
-  // Set loading state
   if (reset || documents.value.length === 0) {
     isLoading.value = true
   } else {
@@ -268,26 +332,23 @@ const fetchDocuments = async (reset = false) => {
   try {
     const response = await ragService.getAllDocuments(itemsPerPage, currentOffset.value)
     
-    console.log(' Loaded documents:', response.data)
+    console.log('📄 Loaded documents:', response.data)
     
-    // Update total count
     totalDocuments.value = response.data.total || response.data.documents.length
     hasMore.value = response.data.has_more || false
 
-    // Append or replace documents
     if (reset) {
       documents.value = response.data.documents
     } else {
       documents.value.push(...response.data.documents)
     }
 
-    // Update offset for next load
     currentOffset.value += itemsPerPage
 
-    console.log(` Total: ${totalDocuments.value}, Loaded: ${documents.value.length}, Has More: ${hasMore.value}`)
+    console.log(`📊 Total: ${totalDocuments.value}, Loaded: ${documents.value.length}, Has More: ${hasMore.value}`)
 
   } catch (error) {
-    console.error('Error fetching documents:', error)
+    console.error('❌ Error fetching documents:', error)
     alert('Failed to load documents')
   } finally {
     isLoading.value = false
@@ -300,19 +361,16 @@ const loadMore = () => {
   fetchDocuments(false)
 }
 
-// ✅ Setup Intersection Observer for infinite scroll
+// ✅ Setup Intersection Observer
 const setupIntersectionObserver = () => {
-  // Disconnect existing observer
   if (observer.value) {
     observer.value.disconnect()
   }
 
-  // Create new observer
   observer.value = new IntersectionObserver(
     (entries) => {
       const sentinel = entries[0]
       
-      // When sentinel is visible and we have more data
       if (sentinel.isIntersecting && hasMore.value && !isLoadingMore.value) {
         console.log('🔄 Scroll sentinel visible, loading more...')
         loadMore()
@@ -320,18 +378,17 @@ const setupIntersectionObserver = () => {
     },
     {
       root: null,
-      rootMargin: '200px',  // Trigger 200px before reaching the bottom
+      rootMargin: '200px',
       threshold: 0.1
     }
   )
 
-  // Observe the sentinel element
   if (scrollSentinel.value) {
     observer.value.observe(scrollSentinel.value)
   }
 }
 
-// ✅ Search
+// ✅ Search & Filter
 const handleSearch = async () => {
   if (!searchKeyword.value.trim()) {
     await fetchDocuments(true)
@@ -341,18 +398,40 @@ const handleSearch = async () => {
   isLoading.value = true
   try {
     const response = await ragService.searchDocuments(searchKeyword.value)
-    documents.value = response.data.documents
-    totalDocuments.value = response.data.documents.length
-    hasMore.value = false  // Search không có pagination
+    
+    let filteredDocs = response.data.documents
+
+    // Apply type filter if set
+    if (filterType.value) {
+      filteredDocs = filteredDocs.filter(doc => 
+        doc.metadata?.type === filterType.value
+      )
+    }
+
+    documents.value = filteredDocs
+    totalDocuments.value = filteredDocs.length
+    hasMore.value = false
+
   } catch (error) {
-    console.error('Error searching:', error)
+    console.error('❌ Error searching:', error)
   } finally {
     isLoading.value = false
   }
 }
 
+const handleFilterChange = () => {
+  // If searching, re-apply filter
+  if (searchKeyword.value.trim()) {
+    handleSearch()
+  } else {
+    // If not searching, just filter current documents
+    fetchDocuments(true)
+  }
+}
+
 const clearSearch = () => {
   searchKeyword.value = ''
+  filterType.value = ''
   fetchDocuments(true)
 }
 
@@ -371,12 +450,11 @@ const deleteDoc = async (doc) => {
   try {
     await ragService.deleteDocument(doc.id)
     
-    // Remove from local list
     documents.value = documents.value.filter(d => d.id !== doc.id)
     totalDocuments.value--
     
   } catch (error) {
-    console.error('Error deleting document:', error)
+    console.error('❌ Error deleting document:', error)
     alert('Failed to delete document')
   }
 }
@@ -388,21 +466,19 @@ const closeModal = () => {
 
 const handleSuccess = () => {
   closeModal()
-  fetchDocuments(true)  // Reload from beginning
+  fetchDocuments(true)
 }
 
 // ✅ Lifecycle
 onMounted(async () => {
   await fetchDocuments(true)
   
-  // Setup infinite scroll after initial load
   setTimeout(() => {
     setupIntersectionObserver()
   }, 100)
 })
 
 onUnmounted(() => {
-  // Cleanup observer
   if (observer.value) {
     observer.value.disconnect()
   }

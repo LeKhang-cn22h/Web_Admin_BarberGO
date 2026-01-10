@@ -61,12 +61,6 @@
       <!-- Actions -->
       <div class="flex gap-2 mt-4 pt-4 border-t">
         <button
-          @click.stop="$emit('edit')"
-          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-lg transition"
-        >
-          Chỉnh sửa
-        </button>
-        <button
           @click.stop="$emit('toggle-status')"
           class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm py-2 rounded-lg transition"
         >

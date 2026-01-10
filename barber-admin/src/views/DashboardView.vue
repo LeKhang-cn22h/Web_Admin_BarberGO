@@ -168,7 +168,6 @@ const stats = ref([
   {
     label: 'Tổng cuộc hẹn',
     value: '0',
-    change: '+12% từ tháng trước',
     color: 'text-blue-600',
     icon: CalendarDaysIcon,
     iconBg: 'blue'
@@ -176,7 +175,6 @@ const stats = ref([
   {
     label: 'Thợ cắt tóc',
     value: '0',
-    change: '+3 thợ mới',
     color: 'text-green-600',
     icon: UserIcon,
     iconBg: 'green'
@@ -189,14 +187,6 @@ const stats = ref([
     icon: ClockIcon,
     iconBg: 'orange'
   },
-  {
-    label: 'Đánh giá TB',
-    value: '4.8',
-    change: '+0.2 điểm',
-    color: 'text-yellow-600',
-    icon: StarIcon,
-    iconBg: 'yellow'
-  }
 ])
 
 // Modal state

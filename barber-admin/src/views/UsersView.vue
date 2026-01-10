@@ -89,7 +89,7 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vai trò</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tham gia</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hành động</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">XEM</th>
             </tr>
           </thead>
           <tbody class="divide-y">
@@ -135,7 +135,6 @@
                 {{ formatDate(user.created_at) }}
               </td>
               <td class="px-6 py-4">
-                <div class="flex items-center gap-2">
                   <button
                     @click="viewUser(user)"
                     class="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
@@ -143,15 +142,7 @@
                   >
                     <EyeIcon class="w-5 h-5" />
                   </button>
-                  <button
-                    @click="toggleUserStatus(user)"
-                    :class="user.status ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'"
-                    class="p-1 rounded"
-                    :title="user.status ? 'Vô hiệu hóa' : 'Kích hoạt'"
-                  >
-                    <component :is="user.status ? LockClosedIcon : LockOpenIcon" class="w-5 h-5" />
-                  </button>
-                </div>
+                  
               </td>
             </tr>
           </tbody>

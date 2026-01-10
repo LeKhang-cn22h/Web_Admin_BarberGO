@@ -35,7 +35,9 @@ export const BARBER_API_ENDPOINTS = {
   BY_ID: (id) => `/barbers/${id}`,
   TOP: '/barbers/top',
   LOCATION: (id) => `/barbers/${id}/location`,
-  UPLOAD_IMAGE: (id) => `/barbers/${id}/upload-image`
+  UPLOAD_IMAGE: (id) => `/barbers/${id}/upload-image`,
+  DEACTIVATE: (id) => `/barbers/${id}/deactivate` ,
+  ACTIVATE: (id) => `/barbers/${id}/active`
 }
 
 export const SERVICE_API_ENDPOINTS = {
@@ -44,3 +46,4 @@ export const SERVICE_API_ENDPOINTS = {
   BY_BARBER: (barberId) => `/services/barber/${barberId}`,
   TOGGLE_STATUS: (id) => `/services/${id}/toggle-status`
 }
+

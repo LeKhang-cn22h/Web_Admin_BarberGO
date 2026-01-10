@@ -9,14 +9,12 @@ export const APPOINTMENT_STATUS = {
 export const APPOINTMENT_STATUS_LABELS = {
   [APPOINTMENT_STATUS.PENDING]: 'Chờ xử lý',
   [APPOINTMENT_STATUS.CONFIRMED]: 'Đã xác nhận',
-  [APPOINTMENT_STATUS.COMPLETED]: 'Đã hoàn thành',
   [APPOINTMENT_STATUS.CANCELLED]: 'Đã hủy'
 }
 
 export const APPOINTMENT_STATUS_CLASSES = {
   [APPOINTMENT_STATUS.PENDING]: 'bg-orange-100 text-orange-800',
   [APPOINTMENT_STATUS.CONFIRMED]: 'bg-green-100 text-green-800',
-  [APPOINTMENT_STATUS.COMPLETED]: 'bg-blue-100 text-blue-800',
   [APPOINTMENT_STATUS.CANCELLED]: 'bg-red-100 text-red-800'
 }
 
