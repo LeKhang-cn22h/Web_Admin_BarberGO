@@ -58,6 +58,15 @@ class BarberService {
     }
   }
 
+  async getStats(){
+    try{
+      const response= await apiClient.get(BARBER_API_ENDPOINTS.STATS)
+      return response.data
+    } catch (error) {
+      this.handleError(error, 'Không thể tải thống kê thợ')
+    }
+  }
+
   async create(data) {
     try {
       const formData = new FormData()

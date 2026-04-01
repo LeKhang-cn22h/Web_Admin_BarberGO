@@ -90,7 +90,7 @@
 
       <!-- Footer -->
       <p class="text-center text-blue-100 text-sm mt-6">
-        © 2024 Quản lý Cắt tóc. Bản quyền được bảo vệ.
+        © 2026 Quản lý Cắt tóc. Bản quyền được bảo vệ.
       </p>
     </div>
   </div>

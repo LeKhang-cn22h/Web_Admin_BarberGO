@@ -5,7 +5,7 @@
     <div class="card bg-gradient-to-r from-blue-600 to-blue-700 text-white">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold mb-2">Chào mừng trở lại, {{ userName }}! 👋</h1>
+          <h1 class="text-2xl font-bold mb-2">Chào mừng trở lại, {{ userName }}!</h1>
           <p class="text-blue-100">Đây là những gì đang xảy ra với tiệm cắt tóc của bạn hôm nay.</p>
         </div>
         <CalendarDaysIcon class="w-20 h-20 opacity-20" />
@@ -168,6 +168,7 @@ const stats = ref([
   {
     label: 'Tổng cuộc hẹn',
     value: '0',
+    change:'Tất cả cuộc hẹn',
     color: 'text-blue-600',
     icon: CalendarDaysIcon,
     iconBg: 'blue'
@@ -175,6 +176,7 @@ const stats = ref([
   {
     label: 'Thợ cắt tóc',
     value: '0',
+    change:'Đang hoạt động',
     color: 'text-green-600',
     icon: UserIcon,
     iconBg: 'green'
@@ -192,7 +194,7 @@ const stats = ref([
 // Modal state
 const showConfirmModal = ref(false)
 const selectedAppointment = ref(null)
-
+const loadingStats = ref(false)
 const fetchPendingAppointments = async () => {
   loadingAppointments.value = true
   try {
@@ -205,6 +207,19 @@ const fetchPendingAppointments = async () => {
     console.error('Error fetching appointments:', error)
   } finally {
     loadingAppointments.value = false
+  }
+}
+const fetchStats = async () => {
+  loadingStats.value = true
+  try {
+    const response = await barberService.getStats()
+    // Backend trả về: { total_barbers, total_appointments }
+    stats.value[0].value = (response.total_appointments ?? 0).toString()
+    stats.value[1].value = (response.total_barbers ?? 0).toString()
+  } catch (error) {
+    console.error('Error fetching stats:', error)
+  } finally {
+    loadingStats.value = false
   }
 }
 
@@ -294,12 +309,11 @@ const handleConfirmWithBarber = async (barberData) => {
       throw new Error('Owner data không có ID')
     }
     
-    console.log('✅ Owner created with ID:', newOwner.id)
+    console.log(' Owner created with ID:', newOwner.id)
     
     // 3. Create barber
     console.log('Step 3: Creating barber...')
     
-    // ✅ FIX: Chỉ gửi 2 fields mà backend cần
     const barberPayload = {
       user_id: newOwner.id,
       name: barberData.name || selectedAppointment.value.name_barber || 'Barber Shop'
@@ -309,7 +323,7 @@ const handleConfirmWithBarber = async (barberData) => {
     
     const newBarber = await barberStore.createBarber(barberPayload)
     
-    console.log('✅ Barber created:', newBarber)
+    console.log(' Barber created:', newBarber)
     
     // 4. Send email
     console.log('Step 4: Sending email...')
@@ -333,7 +347,8 @@ const handleConfirmWithBarber = async (barberData) => {
     // 5. Refresh data
     await Promise.all([
       fetchPendingAppointments(),
-      fetchTopBarbers()
+      fetchTopBarbers(),
+      fetchStats()
     ])
     
     closeConfirmModal()
@@ -370,7 +385,7 @@ const handleReject = async (appointment) => {
     showSuccess('Đã từ chối cuộc hẹn')
     await fetchPendingAppointments()
   } catch (error) {
-    showError('Từ chối cuộc hẹn thất bại')
+    showError('Từ chối cuộc hẹn thất bại', error.message)
   } finally {
     isProcessing.value = false
   }
@@ -379,7 +394,8 @@ const handleReject = async (appointment) => {
 onMounted(async () => {
   await Promise.all([
     fetchPendingAppointments(),
-    fetchTopBarbers()
+    fetchTopBarbers(),
+    fetchStats(),
   ])
 })
 </script>
