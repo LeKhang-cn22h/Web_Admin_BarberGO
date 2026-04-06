@@ -76,7 +76,6 @@
       <header class="h-16 bg-white shadow-sm flex items-center justify-between px-8 sticky top-0 z-30">
         <div>
           <h2 class="text-xl font-semibold text-gray-800">{{ pageTitle }}</h2>
-          <p class="text-xs text-gray-500">{{ currentPath }}</p>
         </div>
         
         <div class="flex items-center gap-4">
@@ -156,12 +155,18 @@ const ragMenuItems = [
     label: 'Knowledge Base', 
     icon: DocumentTextIcon 
   },
+  { 
+    path: '/rag/barber-documents', 
+    label: 'Barber Documents', 
+    icon: ScissorsIcon 
+  },
 
   { 
     path: '/rag/test', 
     label: 'Test Chatbot', 
     icon: BeakerIcon 
-  }
+  },
+  
 ]
 
 const pageTitle = computed(() => {

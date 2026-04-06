@@ -57,7 +57,13 @@ const router = createRouter({
           path: 'rag/test',
           name: 'rag-test',
           component: () => import('@/views/RAG/TestChatView.vue')
-        }
+        },
+        {
+          path: '/rag/barber-documents',
+          name: 'BarberDocuments',
+          component: () => import('@/views/RAG/BarberDocumentsView.vue'),
+          meta: { requiresAuth: true }
+        },
       ]
     }
   ]
